@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Rekomendacje filmów i gier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <nav class="top-nav">
+        <div class="nav-left">
+            <ul class="menu">
+                <li><a href="/">Strona główna</a></li>
+
+                <li class="dropdown">
+                    <a href="#">Filmy</a>
+                    <ul class="dropdown-content">
+                        <li><a href="/movies_by_genre/Action">Akcja</a></li>
+                        <li><a href="/movies_by_genre/Comedy">Komedia</a></li>
+                        <li><a href="/movies_by_genre/Horror">Horror</a></li>
+                        <li><a href="/movies_by_genre/Drama">Dramat</a></li>
+                    </ul>
+                </li>
+
+                <li class="dropdown">
+                    <a href="#">Gry</a>
+                    <ul class="dropdown-content">
+                        <li><a href="/games_by_genre/Action">Akcja</a></li>
+                        <li><a href="/games_by_genre/RPG">RPG</a></li>
+                        <li><a href="/games_by_genre/Sports">Sportowe</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <div class="nav-center">
+            Aplikacja Rekomendacji - Dominik Osiński
+        </div>
+
+        <form id="recommend-form" class="search-form nav-right">
+            <select id="category">
+                <option value="movie">Film</option>
+                <option value="game">Gra</option>
+            </select>
+            <input type="text" id="title" placeholder="np. Avatar, GTA V" required>
+            <button type="submit">Szukaj</button>
+        </form>
+    </nav>
+
+    <div class="container">
+
+        <div id="result" class="result hidden">
+            <h2 id="base-title"></h2>
+
+            <!-- plakat główny -->
+            <img id="base-poster" class="poster main-poster hidden" alt="Plakat filmu">
+
+            <!-- opis w osobnej ramce pod plakatem -->
+            <div class="overview-box hidden" id="overview-box">
+                <p id="base-overview" class="overview"></p>
+            </div>
+
+            <ul id="recommendations" class="recs-list"></ul>
+        </div>
+
+        <div class="similar-section">
+            <ul class="similar-grid" id="similar1"></ul>
+        </div>
+
+        <div class="similar-section">
+            <ul class="similar-grid" id="similar2"></ul>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+        {% if genre_results %}
+        <div class="result">
+            <h2>Filmy – gatunek: {{ active_genre }}</h2>
+            <ul>
+                {% for t in genre_results %}
+                <li>{{ loop.index }}. {{ t }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if game_genre_results %}
+        <div class="result">
+            <h2>Gry – gatunek: {{ active_genre }}</h2>
+            <ul>
+                {% for t in game_genre_results %}
+                <li>{{ loop.index }}. {{ t }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const form = document.getElementById('recommend-form');
+        const resultDiv = document.getElementById('result');
+        const baseTitleEl = document.getElementById('base-title');
+        const basePosterEl = document.getElementById('base-poster');
+        const baseOverviewEl = document.getElementById('base-overview');
+        const overviewBox = document.getElementById('overview-box');
+        const errorDiv = document.getElementById('error');
+
+        const similar1 = document.getElementById('similar1');
+        const similar2 = document.getElementById('similar2');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // reset
+            errorDiv.classList.add('hidden');
+            resultDiv.classList.add('hidden');
+            basePosterEl.classList.add('hidden');
+            basePosterEl.src = '';
+            baseOverviewEl.textContent = '';
+            overviewBox.classList.add('hidden');
+            similar1.innerHTML = '';
+            similar2.innerHTML = '';
+
+            const category = document.getElementById('category').value;
+            const title = document.getElementById('title').value.trim();
+            if (!title) return;
+
+            let url;
+            if (category === 'movie') {
+                url = `/recommend_movie?title=${encodeURIComponent(title)}`;
+            } else {
+                url = `/recommend_game?title=${encodeURIComponent(title)}`;
+            }
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errorDiv.textContent = data.error || 'Wystąpił błąd.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+
+                const base = data.base_movie || data.base_game;
+                baseTitleEl.textContent = `Podobne do: ${base}`;
+
+                if (data.base_poster && category === 'movie') {
+                    basePosterEl.src = data.base_poster;
+                    basePosterEl.classList.remove('hidden');
+                }
+
+                if (data.base_overview && category === 'movie') {
+                    baseOverviewEl.textContent = data.base_overview;
+                    overviewBox.classList.remove('hidden');
+                } else {
+                    baseOverviewEl.textContent = '';
+                    overviewBox.classList.add('hidden');
+                }
+
+                // rekomendacje do dwóch rzędów
+                data.recommendations.forEach((item, i) => {
+                    const li = document.createElement('li');
+
+                    if (item.poster) {
+                        const img = document.createElement('img');
+                        img.src = item.poster;
+                        img.alt = item.title;
+                        li.appendChild(img);
+                    }
+
+                    const span = document.createElement('span');
+                    span.textContent = item.title;
+                    li.appendChild(span);
+
+                    if (i < 5) {
+                        similar1.appendChild(li);
+                    } else if (i < 10) {
+                        similar2.appendChild(li);
+                    }
+                });
+
+                resultDiv.classList.remove('hidden');
+            } catch (err) {
+                errorDiv.textContent = 'Błąd połączenia z serwerem.';
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+
+</body>
+
+</html>
