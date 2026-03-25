@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mój Profil - {{ user.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background-color: #050505;
+            color: white;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .profile-card {
+            background: #111;
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid #333;
+            margin-top: 30px;
+        }
+
+        .gold-text {
+            color: #f1c40f;
+        }
+
+        /* STYLE LINKÓW W KOLEKCJI */
+        .fav-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .fav-link:hover p {
+            color: #f1c40f;
+            /* Tytuł zmienia kolor na złoty po najechaniu */
+        }
+
+        /* STYLE QUIZU */
+        .btn-quiz {
+            background: linear-gradient(45deg, #f1c40f, #d4ac0d);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-quiz:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(241, 196, 15, 0.4);
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            margin: 10% auto;
+            padding: 30px;
+            border: 1px solid #f1c40f;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .quiz-step h3 {
+            color: #f1c40f;
+            margin-bottom: 25px;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .quiz-options button {
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quiz-options button:hover {
+            background: #333;
+            border-color: #f1c40f;
+        }
+
+        /* Układ kolumnowy dla sekcji ulubionych */
+        .fav-columns {
+            display: flex;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        .fav-column {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #222;
+        }
+
+        .fav-column h3 {
+            border-bottom: 2px solid #f1c40f;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .fav-item {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.2s;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .fav-item:hover {
+            transform: translateY(-5px);
+            border-color: #f1c40f;
+        }
+
+        .fav-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 8px;
+        }
+
+        .btn-delete {
+            background: #c0392b;
+            color: white;
+            border: none;
+            padding: 6px;
+            width: 100%;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: background 0.2s;
+            margin-top: 5px;
+        }
+
+        .btn-delete:hover {
+            background: #e74c3c;
+        }
+
+        @media (max-width: 900px) {
+            .fav-columns {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="/" style="color: #f1c40f; text-decoration: none; font-weight: bold;">← Wróć do wyszukiwarki</a>
+
+        <div class="profile-card">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <img src="{{ user.picture }}" style="border-radius: 50%; width: 80px; border: 2px solid #f1c40f;">
+                <div>
+                    <h1 class="gold-text" style="margin: 0;">{{ user.name }}</h1>
+                    <p style="margin: 5px 0; color: #bbb;">{{ user.email }}</p>
+                </div>
+            </div>
+
+            <button type="button" class="btn-quiz" onclick="openQuiz()">
+                ✨ ROZWIĄŻ QUIZ REKOMENDACJI
+            </button>
+
+            <div id="quizModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeQuiz()">&times;</span>
+                    <div id="quiz-container">
+                        <div class="quiz-step active" data-step="0">
+                            <h3>Co chcesz dzisiaj obejrzeć lub w co zagrać?</h3>
+                            <div class="quiz-options">
+                                <button type="button" class="quiz-btn category-btn" data-category="movie">Film</button>
+                                <button type="button" class="quiz-btn category-btn" data-category="game">Gra</button>
+                            </div>
+                        </div>
+                        <div class="quiz-step" id="step1">
+                            <h3>1. Jaki masz dziś nastrój?</h3>
+                            <div class="quiz-options">
+                                <button onclick="nextStep('step1', 'step2', 'funny comedy lighthearted')">Wesoły i
+                                    lekki</button>
+                                <button onclick="nextStep('step1', 'step2', 'dark horror scary suspense')">Mroczny i
+                                    straszny</button>
+                                <button onclick="nextStep('step1', 'step2', 'emotional drama sad intense')">Poważny i
+                                    wzruszający</button>
+                            </div>
+                        </div>
+                        <div class="quiz-step" id="step2" style="display:none;">
+                            <h3>2. Gdzie chcesz się przenieść?</h3>
+                            <div class="quiz-options">
+                                <button onclick="nextStep('step2', 'step3', 'space science fiction future')">W kosmos /
+                                    Przyszłość</button>
+                                <button onclick="nextStep('step2', 'step3', 'fantasy magic medieval dragons')">Świat
+                                    magii i miecza</button>
+                                <button
+                                    onclick="nextStep('step2', 'step3', 'realistic modern city contemporary')">Rzeczywistość</button>
+                            </div>
+                        </div>
+                        <div class="quiz-step" id="step3" style="display:none;">
+                            <h3>3. Co jest dla Ciebie najważniejsze?</h3>
+                            <div class="quiz-options">
+                                <button onclick="nextStep('step3', 'step4', 'action fight fast-paced')">Szybka akcja i
+                                    walka</button>
+                                <button onclick="nextStep('step3', 'step4', 'storyline deep mystery')">Głęboka historia
+                                    i zagadki</button>
+                                <button onclick="nextStep('step3', 'step4', 'atmosphere beautiful exploration')">Klimat
+                                    i eksploracja</button>
+                            </div>
+                        </div>
+                        <div class="quiz-step" id="step4" style="display:none;">
+                            <h3>4. Jak wolisz spędzać czas?</h3>
+                            <div class="quiz-options">
+                                <button onclick="nextStep('step4', 'step5', 'single-player cinematic')">Samotna
+                                    przygoda</button>
+                                <button onclick="nextStep('step4', 'step5', 'multiplayer coop party')">Z
+                                    przyjaciółmi</button>
+                                <button onclick="nextStep('step4', 'step5', 'competitive pvp online')">Rywalizacja z
+                                    innymi</button>
+                            </div>
+                        </div>
+                        <div class="quiz-step" id="step5" style="display:none;">
+                            <h3>5. Ostatni wybór - klimat:</h3>
+                            <div class="quiz-options">
+                                <button onclick="nextStep('step5', 'finish', 'cartoonish vibrant colorful')">Kolorowy i
+                                    bajkowy</button>
+                                <button onclick="nextStep('step5', 'finish', 'gritty realistic historical')">Brudny i
+                                    realistyczny</button>
+                                <button onclick="nextStep('step5', 'finish', 'cyberpunk neon tech')">Cyberpunk /
+                                    Neon</button>
+                            </div>
+                        </div>
+                        <div id="quiz-loading" style="display:none;">
+                            <p>Analizujemy Twój profil... ✨</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #333; margin: 30px 0;">
+
+            <h2 style="text-align: center; margin-bottom: 30px;">Twoja Kolekcja</h2>
+
+            <div class="fav-columns">
+                <div class="fav-column">
+                    <h3>🎬 Ulubione Filmy</h3>
+                    <div class="fav-grid">
+                        {% for fav in favorites_movies %}
+                        <div class="fav-item">
+                            <a href="{{ url_for('content_bp.movie_details_page', title=fav.title) }}" class="fav-link">
+                                <img src="{{ fav.poster }}" alt="{{ fav.title }}">
+                                <p
+                                    style="font-size: 11px; margin: 5px 0; height: 30px; overflow: hidden; line-height: 1.2;">
+                                    {{ fav.title }}
+                                </p>
+                            </a>
+                            <form action="{{ url_for('main_bp.delete_favorite', fav_id=fav.id) }}" method="POST">
+                                <button type="submit" class="btn-delete">USUŃ</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p style="color: #666; font-style: italic;">Brak zapisanych filmów.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="fav-column">
+                    <h3>🎮 Ulubione Gry</h3>
+                    <div class="fav-grid">
+                        {% for fav in favorites_games %}
+                        <div class="fav-item">
+                            <a href="{{ url_for('content_bp.game_details_page', title=fav.title) }}" class="fav-link">
+                                <img src="{{ fav.poster }}" alt="{{ fav.title }}">
+                                <p
+                                    style="font-size: 11px; margin: 5px 0; height: 30px; overflow: hidden; line-height: 1.2;">
+                                    {{ fav.title }}
+                                </p>
+                            </a>
+                            <form action="{{ url_for('main_bp.delete_favorite', fav_id=fav.id) }}" method="POST">
+                                <button type="submit" class="btn-delete">USUŃ</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p style="color: #666; font-style: italic;">Brak zapisanych gier.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedCategory = "movie";
+        let selectedKeywords = [];
+
+        function openQuiz() {
+            document.getElementById("quizModal").style.display = "block";
+            selectedKeywords = [];
+            selectedCategory = "movie";
+            document.querySelectorAll('.quiz-step').forEach(s => s.style.display = 'none');
+            document.querySelector('[data-step="0"]').style.display = 'block';
+        }
+
+        function closeQuiz() {
+            document.getElementById("quizModal").style.display = "none";
+        }
+
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                selectedCategory = this.dataset.category;
+                document.querySelector('[data-step="0"]').style.display = 'none';
+                document.getElementById('step1').style.display = 'block';
+            });
+        });
+
+        function nextStep(current, next, keywords) {
+            if (keywords) {
+                selectedKeywords.push(keywords);
+            }
+            document.getElementById(current).style.display = 'none';
+            if (next === 'finish') {
+                finishQuiz();
+            } else {
+                document.getElementById(next).style.display = 'block';
+            }
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-container').innerHTML = "<h3>Szukamy dla Ciebie idealnych tytułów... ✨</h3>";
+            const finalQuery = selectedKeywords.join(" ");
+            fetch('/api/quiz_recommend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    keywords: finalQuery,
+                    category: selectedCategory
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    let html = `<h3>Twoje dopasowania (${selectedCategory === 'movie' ? 'Filmy' : 'Gry'}):</h3>`;
+                    html += "<div style='text-align:left; margin: 20px 0;'>";
+                    if (data.length === 0 || data[0].includes("Błąd")) {
+                        html += "<p>Nie znaleźliśmy nic pasującego. Spróbuj innych odpowiedzi!</p>";
+                    } else {
+                        data.forEach(item => {
+                            html += `<p>⭐ <b>${item}</b></p>`;
+                        });
+                    }
+                    html += "</div><button class='btn-quiz' onclick='location.reload()'>ZAMKNIJ I ODŚWIEŻ</button>";
+                    document.getElementById('quiz-container').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('quiz-container').innerHTML = "<h3>Wystąpił błąd połączenia.</h3>";
+                });
+        }
+    </script>
+</body>
+
+</html>

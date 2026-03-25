@@ -1,0 +1,16 @@
+[
+  "tests/test_main.py::test_home_page",
+  "tests/test_main.py::test_recommend_movie_missing_title",
+  "tests/test_recommender_games.py::test_load_games",
+  "tests/test_recommender_games.py::test_recommend_game_empty_title",
+  "tests/test_recommender_games.py::test_recommend_game_unknown_title",
+  "tests/test_recommender_games.py::test_recommend_gamme_for_known_title",
+  "tests/test_recommender_games.py::test_recommend_gamme_known_title",
+  "tests/test_recommender_movies.py::test_load_movies",
+  "tests/test_recommender_movies.py::test_recommend_invalid_title",
+  "tests/test_recommender_movies.py::test_recommend_invalid_title_returns_something",
+  "tests/test_recommender_movies.py::test_recommend_movie_empty_title",
+  "tests/test_recommender_movies.py::test_recommend_movie_for_known_title",
+  "tests/test_recommender_movies.py::test_recommend_movie_returns_recommendations",
+  "tests/test_recommender_movies.py::test_recommend_movie_unknown_title"
+]

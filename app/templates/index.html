@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekomendacje filmów i gier</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <nav class="top-nav" id="navbar">
+        <div class="nav-left">
+            <div class="brand-title">Rekomender</div>
+            <ul class="menu">
+                <li><a href="/">Strona główna</a></li>
+                <li class="dropdown">
+                    <a href="#">Filmy</a>
+                    <ul class="dropdown-content">
+                        <li><a href="{{ url_for('content_bp.movies_by_genre', genre_name='Action') }}">Akcja</a></li>
+                        <li><a href="{{ url_for('content_bp.movies_by_genre', genre_name='Comedy') }}">Komedia</a></li>
+                        <li><a href="{{ url_for('content_bp.movies_by_genre', genre_name='Horror') }}">Horror</a></li>
+                        <li><a href="{{ url_for('content_bp.movies_by_genre', genre_name='Drama') }}">Dramat</a></li>
+                        <li><a href="{{ url_for('content_bp.movies_by_genre', genre_name='Animation') }}">Animacja</a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#">Gry</a>
+                    <ul class="dropdown-content">
+                        <li><a href="{{ url_for('content_bp.games_by_genre', genre_name='Action') }}">Akcja</a></li>
+                        <li><a href="{{ url_for('content_bp.games_by_genre', genre_name='RPG') }}">RPG</a></li>
+                        <li><a href="{{ url_for('content_bp.games_by_genre', genre_name='Sports') }}">Sportowe</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <div class="nav-right-container">
+            <form id="recommend-form" class="search-form">
+                <select id="category">
+                    <option value="movie">Film</option>
+                    <option value="game">Gra</option>
+                </select>
+                <input type="text" id="title" placeholder="Wyszukaj..." required>
+                <button type="submit">Szukaj</button>
+            </form>
+
+            <div class="user-auth">
+                {% if session.get('user') %}
+                <div class="user-info-capsule">
+                    <a href="{{ url_for('main_bp.profile_page') }}" class="user-profile-link">
+                        <img src="{{ session['user']['picture'] }}" alt="Avatar" class="user-avatar">
+                        <span class="user-name">{{ session['user']['name'] }}</span>
+                    </a>
+                    <span class="nav-divider">|</span>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-btn">Wyloguj</a>
+                </div>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="auth-btn login">Zaloguj przez Google</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    {# ------- HERO BANNER (Widoczny tylko na głównej stronie, gdy nie ma wyników wyszukiwania) ------- #}
+    {% if not show_results and not genre_items and not game_genre_items and (hero_movies or hero_games) %}
+    {% set first_hero = hero_movies[0] if hero_movies else hero_games[0] %}
+    <header class="hero-banner" id="hero-banner-main"
+        style="background-image: url('{{ first_hero.backdrop if first_hero.backdrop else first_hero.poster }}');">
+        <div class="hero-vignette"></div>
+        <div class="hero-content">
+            <div class="hero-tagline">
+                <span class="hero-badge" id="hero-badge">Wybór Dnia</span>
+                <span class="hero-type" id="hero-type-label">{% if first_hero.type == 'movie' %}Film{% else %}Gra{%
+                    endif %}</span>
+            </div>
+            <h1 class="hero-title" id="hero-title">{{ first_hero.title }}</h1>
+            <p class="hero-desc">Zanurz się w świecie najlepszej rozrywki. Odkryj tytuły dopasowane do Twojego
+                unikalnego gustu i rozpocznij nową przygodę już teraz.</p>
+
+            <div class="hero-actions">
+                <button class="btn-play" id="hero-btn-primary"
+                    onclick="window.location.href='/{{ first_hero.type }}/{{ first_hero.title|urlencode }}'">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    Sprawdź
+                </button>
+
+                <div class="btn-random-group">
+                    <button class="btn-random" onclick="nextHeroMovie()" title="Losuj inny film">
+                        Film 🎬
+                    </button>
+                    <button class="btn-random" onclick="nextHeroGame()" title="Losuj inną grę">
+                        Gra 🕹️
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        const heroMoviesData = {{ hero_movies | tojson | safe if hero_movies else '[]' }};
+        const heroGamesData = {{ hero_games | tojson | safe if hero_games else '[]' }};
+        let currentMovieIndex = 0;
+        let currentGameIndex = 0;
+
+        function updateHeroBanner(item) {
+            if (!item) return;
+            const banner = document.getElementById('hero-banner-main');
+            const title = document.getElementById('hero-title');
+            const primaryBtn = document.getElementById('hero-btn-primary');
+            const typeLabel = document.getElementById('hero-type-label');
+
+            const bgImage = item.backdrop ? item.backdrop : item.poster;
+
+            // Płynne przejście tła (można dodać klasę z opacity w css)
+            banner.style.backgroundImage = `url('${bgImage}')`;
+
+            title.textContent = item.title;
+            typeLabel.textContent = item.type === 'movie' ? 'Film' : 'Gra';
+
+            primaryBtn.onclick = function () {
+                window.location.href = `/${item.type}/${encodeURIComponent(item.title)}`;
+            };
+        }
+
+        function nextHeroMovie() {
+            if (!heroMoviesData || heroMoviesData.length === 0) return;
+            currentMovieIndex = (currentMovieIndex + 1) % heroMoviesData.length;
+            updateHeroBanner(heroMoviesData[currentMovieIndex]);
+        }
+
+        function nextHeroGame() {
+            if (!heroGamesData || heroGamesData.length === 0) return;
+            currentGameIndex = (currentGameIndex + 1) % heroGamesData.length;
+            updateHeroBanner(heroGamesData[currentGameIndex]);
+        }
+    </script>
+    {% endif %}
+
+    <div class="container">
+        <div id="result" class="result {% if not show_results %}hidden{% endif %}">
+            <div id="base-wrapper" class="base-wrapper">
+                <img id="base-poster" src="{{ base_poster if base_poster else '' }}"
+                    class="main-poster {% if not base_poster %}hidden{% endif %}" alt="Plakat">
+                <div class="overview-container">
+                    <h2 id="base-title">{{ base_movie if base_movie else base_game }}</h2>
+                    <div id="base-info" class="base-info hidden">
+                        <span id="base-platforms"></span>
+                        <span id="base-pegi"></span>
+                        <span id="base-publisher"></span>
+                    </div>
+                    <p id="base-overview" class="overview">
+                        {{ base_overview if base_overview else base_summary }}
+                    </p>
+                    <button id="toggle-overview" class="toggle-btn hidden">Pokaż więcej</button>
+
+                    {% if session.get('user') %}
+                    <button id="add-to-fav-btn" class="toggle-btn"
+                        style="background:#27ae60;color:white;margin-top:10px;">
+                        ❤️ Dodaj do ulubionych
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="similar-section">
+                <h2>Rekomendacje</h2>
+                <div id="recommendations-wrapper">
+                    <ul class="similar-grid" id="similar1">
+                        {% if recommendations %}
+                        {% for rec in recommendations %}
+                        <li
+                            onclick="window.location.href='/{{ 'movie' if base_movie else 'game' }}/{{ rec.title|urlencode }}'">
+                            <img src="{{ rec.poster }}" alt="{{ rec.title }}">
+                            <span>{{ rec.title }}</span>
+                        </li>
+                        {% endfor %}
+                        {% endif %}
+                    </ul>
+                    <ul class="similar-grid" id="similar2"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="error" class="error hidden" style="color:#e74c3c;padding:20px;text-align:center;"></div>
+
+        {# ------- Sekcja wyników wyszukiwania (pozostaje bez zmian) ------- #}
+        {% if show_results %}
+        {% if not movie_results and not game_results %}
+        <div class="no-results">
+            <h2>Nie znaleziono wyników dla "{{ request.args.get('title') }}"</h2>
+            <p>Sprawdź poprawność wpisanego tytułu lub spróbuj użyć innych słów kluczowych.</p>
+        </div>
+        {% else %}
+        <h2>Wyniki wyszukiwania</h2>
+        {% if movie_results %}
+        <h3>W filmach:</h3>
+        <ul class="popular-grid">
+            {% for item in movie_results %}
+            <li class="popular-item">
+                <a href="{{ url_for('content_bp.movie_details_page', title=item.title) }}">
+                    <img src="{{ item.poster }}" alt="{{ item.title }}">
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if game_results %}
+        <h3>W grach:</h3>
+        <ul class="popular-grid games-row">
+            {% for item in game_results %}
+            <li class="popular-item">
+                <a href="{{ url_for('content_bp.game_details_page', title=item.title) }}">
+                    <img src="{{ item.poster }}" alt="{{ item.title }}">
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endif %}
+
+        {# ------- Wyniki Kategorii (pozostaje bez zmian) ------- #}
+        {% elif genre_items %}
+        <h2>Filmy w gatunku: {{ request.args.get('genre') }}</h2>
+        <ul class="popular-grid">
+            {% for item in genre_items %}
+            <li class="popular-item">
+                <a href="{{ url_for('content_bp.movie_details_page', title=item.title) }}">
+                    <img src="{{ item.poster }}" alt="{{ item.title }}">
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% elif game_genre_items %}
+        <h2>Gry w gatunku: {{ request.args.get('genre') }}</h2>
+        <ul class="popular-grid games-row">
+            {% for item in game_genre_items %}
+            <li class="popular-item">
+                <a href="{{ url_for('content_bp.game_details_page', title=item.title) }}">
+                    <img src="{{ item.poster }}" alt="{{ item.title }}">
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {# ------- DYNAMICZNE KARUZELE (Nowy kod na stronie głównej) ------- #}
+        {% else %}
+        {% if carousels %}
+        {% for carousel in carousels %}
+        <div class="popular-row" style="margin-top:40px;">
+            <h2>{{ carousel.header }}</h2>
+            <div class="horizontal-scroll">
+                <ul class="popular-grid row-layout {% if carousel.is_game %}games-row{% endif %}">
+                    {% for item in carousel.content_items %}
+                    <li class="popular-item">
+                        <a
+                            href="{{ url_for('content_bp.game_details_page' if carousel.is_game else 'content_bp.movie_details_page', title=item.title) }}">
+                            <img src="{{ item.poster }}" alt="{{ item.title }}" loading="lazy">
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <script>
+        const form = document.getElementById('recommend-form');
+        const resultDiv = document.getElementById('result');
+        const baseTitleEl = document.getElementById('base-title');
+        const basePosterEl = document.getElementById('base-poster');
+        const baseOverviewEl = document.getElementById('base-overview');
+        const errorDiv = document.getElementById('error');
+        const similar1 = document.getElementById('similar1');
+        const similar2 = document.getElementById('similar2');
+        const addFavBtn = document.getElementById('add-to-fav-btn');
+        const pageType = "{{ current_type or '' }}";
+
+        // --- Obsługa wyszukiwania (AJAX) ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorDiv.classList.add('hidden');
+
+            // Ukrywamy popularne i gatunki, żeby pokazać tylko wynik wyszukiwania
+            const popularSec = document.getElementById('popular-section');
+            if (popularSec) popularSec.style.display = 'none';
+
+            // Czyścimy kafelki (usuwa te wstawione przez Pythona)
+            if (similar1) similar1.innerHTML = '';
+            if (similar2) similar2.innerHTML = '';
+
+            const category = document.getElementById('category').value;
+            const titleInput = document.getElementById('title').value.trim();
+            if (!titleInput) return;
+
+            const url = category === 'movie'
+                ? `/recommend_movie?title=${encodeURIComponent(titleInput)}`
+                : `/recommend_game?title=${encodeURIComponent(titleInput)}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errorDiv.textContent = data.error || 'Nie znaleziono tytułu.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+
+                // Podmiana danych na stronie bez odświeżania
+                if (baseTitleEl) baseTitleEl.textContent = data.base_movie || data.base_game;
+                if (basePosterEl && data.base_poster) {
+                    basePosterEl.src = data.base_poster;
+                    basePosterEl.classList.remove('hidden');
+                }
+                if (baseOverviewEl) {
+                    baseOverviewEl.textContent = data.base_overview || data.base_summary || "Brak opisu.";
+                }
+
+                // Generowanie nowych kafelków rekomendacji
+                if (data.recommendations && data.recommendations.length > 0) {
+                    data.recommendations.forEach((item, i) => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<img src="${item.poster}" alt="${item.title}"><span>${item.title}</span>`;
+                        li.style.cursor = "pointer";
+                        li.onclick = () => {
+                            window.location.href = `/${category}/${encodeURIComponent(item.title)}`;
+                        };
+
+                        if (i < 7) {
+                            if (similar1) similar1.appendChild(li);
+                        } else if (i < 14) {
+                            if (similar2) similar2.appendChild(li);
+                        }
+                    });
+                }
+
+                resultDiv.classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                errorDiv.textContent = 'Błąd połączenia z serwerem.';
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        // --- Dodawanie do ulubionych ---
+        let isSavingFavorite = false;
+        if (addFavBtn) {
+            addFavBtn.addEventListener('click', async () => {
+                if (isSavingFavorite) return;
+                isSavingFavorite = true;
+
+                const title = baseTitleEl.textContent;
+                const poster = basePosterEl.src;
+                let category = pageType || document.getElementById('category').value || 'movie';
+
+                try {
+                    const response = await fetch('/add_favorite', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, poster, category })
+                    });
+                    const data = await response.json();
+                    if (response.status === 201) alert("Dodano do ulubionych!");
+                    else alert(data.message || data.error);
+                } catch (e) {
+                    alert("Błąd połączenia.");
+                } finally {
+                    isSavingFavorite = false;
+                }
+            });
+        }
+
+        // --- Zmiana przezroczystości nawigacji przy scrollowaniu ---
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+
+</html>

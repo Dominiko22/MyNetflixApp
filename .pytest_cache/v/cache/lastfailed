@@ -1,0 +1,3 @@
+{
+  "tests/test_recommender_movies.py::test_recommend_invalid_title": true
+}

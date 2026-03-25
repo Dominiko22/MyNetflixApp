@@ -1,5 +1,9 @@
-"""Testy endpointów Flask w main.py."""
-from main import app
+"""
+Test jednostkowy dla głównych routerów API opartych na instancji Flask.
+Sprawdza łączność HTTP, dostępność stron po stronie klienta oraz generowanie błędów
+(np. błąd 400 przy wywołaniu endpointu API bez parametrów).
+"""
+from run import app
 
 
 def test_home_page():
